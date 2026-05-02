@@ -3,7 +3,7 @@ import { PostgresStore } from './postgresStore.js';
 
 export function createStore(config) {
   if (config.driver === 'postgres') {
-    return new PostgresStore(config.databaseUrl);
+    return new PostgresStore(config);
   }
   return new JsonStore(config.jsonPath);
 }

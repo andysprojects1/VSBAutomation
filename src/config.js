@@ -56,6 +56,7 @@ export function getConfig() {
     storage: {
       driver: process.env.STORE_DRIVER || (process.env.DATABASE_URL ? 'postgres' : 'json'),
       databaseUrl: process.env.DATABASE_URL ?? '',
+      ssl: boolFromEnv('DATABASE_SSL', false),
       jsonPath: process.env.JSON_STORE_PATH ?? 'data/local-store.json'
     },
     ebay: {

@@ -2,8 +2,14 @@ import { readFile } from 'node:fs/promises';
 import { createId } from '../utils/ids.js';
 
 export class PostgresStore {
-  constructor(databaseUrl) {
-    this.databaseUrl = databaseUrl;
+  constructor(configOrDatabaseUrl) {
+    if (typeof configOrDatabaseUrl === 'string') {
+      this.databaseUrl = configOrDatabaseUrl;
+      this.ssl = false;
+    } else {
+      this.databaseUrl = configOrDatabaseUrl.databaseUrl;
+      this.ssl = Boolean(configOrDatabaseUrl.ssl);
+    }
     this.pool = null;
   }
 
@@ -11,7 +17,7 @@ export class PostgresStore {
     const { Pool } = await import('pg');
     this.pool = new Pool({
       connectionString: this.databaseUrl,
-      ssl: this.databaseUrl.includes('railway') || this.databaseUrl.includes('render') ? { rejectUnauthorized: false } : undefined
+      ssl: this.ssl ? { rejectUnauthorized: false } : undefined
     });
   }
 
