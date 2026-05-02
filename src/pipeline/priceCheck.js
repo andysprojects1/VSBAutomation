@@ -112,10 +112,21 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
 
   await store.saveListingMatches(submission.id, matches);
 
-  const priceSnapshot = await store.savePriceSnapshot(
-    submission.id,
-    priceFromMatches(matches, config.pipeline.pricingVersion)
-  );
+  const snapshot = priceFromMatches(matches, config.pipeline.pricingVersion);
+  if (!deduped.length) {
+    snapshot.notes = [
+      'No sold listings came back from eBay Marketplace Insights, Finding completed-items, or the web sold-search fallback.',
+      'If Marketplace Insights/Finding are unavailable for your eBay app, use `/addcomp` to seed known sold comps or connect a dedicated scraper provider.',
+      ...snapshot.notes
+    ];
+  } else if (!snapshot.trustedCompCount) {
+    snapshot.notes = [
+      `${deduped.length} candidate sold listing${deduped.length === 1 ? '' : 's'} came back, but none passed matching strongly enough for pricing.`,
+      ...snapshot.notes
+    ];
+  }
+
+  const priceSnapshot = await store.savePriceSnapshot(submission.id, snapshot);
 
   return {
     submission,

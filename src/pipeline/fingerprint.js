@@ -2,7 +2,7 @@ import { extractYears, includesAny, normalizeText, uniqueTokens } from './text.j
 
 const KNOWN_TAGS = [
   'anvil', 'brockum', 'changes', 'fruit of the loom', 'giant', 'hanes', 'jerzees',
-  'liquid blue', 'screen stars', 'spring ford', 'stanley desantis', 'tultex', 'wild oats'
+  'liquid blue', 'screen stars', 'screenstars', 'spring ford', 'stanley desantis', 'tultex', 'wild oats'
 ];
 
 const BACK_HIT_TERMS = ['back hit', 'double sided', 'two sided', '2 sided', 'front and back', 'back print'];
@@ -28,6 +28,23 @@ function guessDecade(year) {
   return `${Math.floor(numeric / 10) * 10}s`;
 }
 
+function cleanSearchSubject(value) {
+  const normalized = normalizeText(value)
+    .replace(/\bt\s?shirt\b/g, ' shirt ')
+    .replace(/\bscreen\s?stars\b/g, ' screenstars ');
+  const noisy = new Set([
+    'vintage', 'shirt', 'tee', 'single', 'double', 'stitch', 'stitched',
+    'screenstars', 'screen', 'stars', 'tag', 'tags', 'euro', 'tour',
+    'rare', 'original', 'authentic', 'mens', 'men', 'women', 'large',
+    'medium', 'small', 'xl', 'xxl'
+  ]);
+  const tokens = normalized.split(' ')
+    .filter((token) => token.length > 1)
+    .filter((token) => !noisy.has(token));
+  const unique = [...new Set(tokens)].slice(0, 8);
+  return unique.join(' ') || null;
+}
+
 export function buildFingerprint({ submissionId, note, itemNameGuess, images = [], vision = {} }) {
   const text = [itemNameGuess, note, vision.likelyArtist, vision.brandOrSubject, vision.graphicSummary, vision.tourOrAlbum, vision.visibleYear, vision.tagBrand].filter(Boolean).join(' ');
   const normalized = normalizeText(text);
@@ -43,13 +60,17 @@ export function buildFingerprint({ submissionId, note, itemNameGuess, images = [
     includesAny(text, DOUBLE_STITCH_TERMS) ? 'double stitch' : null
   );
   const hasBackHit = Boolean(vision.hasBackHit ?? includesAny(text, BACK_HIT_TERMS) ?? images.some((image) => image.role === 'back'));
-  const artist = firstNonEmpty(vision.likelyArtist, itemNameGuess, guessSubject(note));
-  const subject = firstNonEmpty(vision.brandOrSubject, artist, guessSubject(text));
+  const cleanedSubject = cleanSearchSubject(firstNonEmpty(itemNameGuess, note, vision.graphicSummary, text));
+  const artist = firstNonEmpty(vision.likelyArtist, cleanedSubject, itemNameGuess, guessSubject(note));
+  const subject = firstNonEmpty(vision.brandOrSubject, cleanedSubject, artist, guessSubject(text));
+  const querySubject = firstNonEmpty(cleanedSubject, subject, artist);
 
   return {
     submissionId,
-    queryName: [artist, vision.tourOrAlbum, visibleYear, 'vintage shirt'].filter(Boolean).join(' '),
+    queryName: [querySubject, querySubject?.includes(visibleYear) ? null : visibleYear, 'vintage shirt'].filter(Boolean).join(' '),
     artist,
+    querySubject,
+    submittedTitle: itemNameGuess || null,
     brandOrSubject: subject,
     eraGuess: firstNonEmpty(vision.eraGuess, visibleYear),
     decadeGuess: firstNonEmpty(vision.decadeGuess, guessDecade(visibleYear)),

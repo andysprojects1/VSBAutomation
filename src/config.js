@@ -100,6 +100,7 @@ export function getConfig() {
       jsonPath: stringFromEnv('JSON_STORE_PATH', 'data/local-store.json')
     },
     ebay: {
+      appId: stringFromEnv('EBAY_APP_ID') || stringFromEnv('EBAY_CLIENT_ID'),
       clientId: stringFromEnv('EBAY_CLIENT_ID'),
       clientSecret: stringFromEnv('EBAY_CLIENT_SECRET'),
       marketplaceId: stringFromEnv('EBAY_MARKETPLACE_ID', 'EBAY_US'),
@@ -107,7 +108,9 @@ export function getConfig() {
       useSandbox,
       baseUrl: useSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com',
       oauthUrl: useSandbox ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token' : 'https://api.ebay.com/identity/v1/oauth2/token',
+      findingUrl: useSandbox ? 'https://svcs.sandbox.ebay.com/services/search/FindingService/v1' : 'https://svcs.ebay.com/services/search/FindingService/v1',
       enableActiveFallback: boolFromEnv('EBAY_ENABLE_ACTIVE_FALLBACK'),
+      enableWebSoldFallback: boolFromEnv('EBAY_ENABLE_WEB_SOLD_FALLBACK', true),
       maxCompsPerQuery: intFromEnv('MAX_COMPS_PER_QUERY', 15)
     },
     vision: {

@@ -9,11 +9,26 @@ function confident(fingerprint, field, min = 0.45) {
   return (fingerprint.confidence?.[field] ?? 0) >= min;
 }
 
+function withYear(subject, year) {
+  if (!year) return subject;
+  return String(subject).includes(String(year)) ? subject : `${subject} ${year}`;
+}
+
 export function generateQueries(fingerprint) {
   const queries = [];
   const seen = new Set();
-  const artist = fingerprint.artist || fingerprint.brandOrSubject || '';
+  const artist = fingerprint.querySubject || fingerprint.artist || fingerprint.brandOrSubject || '';
   const base = [artist, 'vintage shirt'].filter(Boolean).join(' ');
+
+  if (fingerprint.submittedTitle) {
+    pushQuery(queries, seen, {
+      queryType: 'submitted_title',
+      priority: 5,
+      queryText: fingerprint.submittedTitle,
+      fieldsUsed: ['submittedTitle'],
+      debugNotes: 'Original user-provided listing name preserved as a high-specificity query.'
+    });
+  }
 
   pushQuery(queries, seen, {
     queryType: 'broad',
@@ -37,9 +52,19 @@ export function generateQueries(fingerprint) {
     pushQuery(queries, seen, {
       queryType: 'year_specific',
       priority: 30,
-      queryText: `${artist} ${fingerprint.visibleYear} vintage shirt`,
+      queryText: `${withYear(artist, fingerprint.visibleYear)} vintage shirt`,
       fieldsUsed: ['artist', 'visibleYear'],
       debugNotes: 'Visible year included because confidence is strong.'
+    });
+  }
+
+  if (fingerprint.visibleYear) {
+    pushQuery(queries, seen, {
+      queryType: 'subject_year',
+      priority: 35,
+      queryText: withYear(artist, fingerprint.visibleYear),
+      fieldsUsed: ['querySubject', 'visibleYear'],
+      debugNotes: 'Cleaner subject/year query for completed-item APIs and sold-search pages.'
     });
   }
 
