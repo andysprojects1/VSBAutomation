@@ -26,6 +26,33 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
   });
   await store.saveFingerprint(submission.id, fingerprint, config.vision.provider);
 
+  if (isTooGenericFingerprint(fingerprint, input)) {
+    const priceSnapshot = await store.savePriceSnapshot(submission.id, {
+      id: null,
+      bestEstimate: null,
+      lowRange: null,
+      highRange: null,
+      currency: 'USD',
+      confidence: 'low',
+      trustedCompCount: 0,
+      notes: [
+        'I need a little more shirt detail before pulling comps.',
+        'Add visible text, artist/band/brand, year, tag, tour, or album in the note or guess field.',
+        'Image-only identification is currently using the heuristic fallback. Configure VISION_PROVIDER=openai or webhook for real image analysis.'
+      ],
+      compIdsUsed: [],
+      pricingVersion: config.pipeline.pricingVersion
+    });
+    return {
+      submission,
+      fingerprint,
+      queries: [],
+      listings: [],
+      matches: [],
+      priceSnapshot
+    };
+  }
+
   const queries = generateQueries(fingerprint);
   await store.saveQueries(submission.id, queries);
 
@@ -98,6 +125,19 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
     matches,
     priceSnapshot
   };
+}
+
+function isTooGenericFingerprint(fingerprint, input) {
+  const noteText = `${input.rawNote ?? ''} ${input.itemNameGuess ?? ''}`.trim();
+  const genericNames = new Set(['vintage shirt', 'shirt', 'tee', 't shirt', 't-shirt', 'vintage tee']);
+  const queryName = String(fingerprint.queryName ?? '').toLowerCase().trim();
+  const artist = String(fingerprint.artist ?? '').toLowerCase().trim();
+  return noteText.length < 8
+    && (!artist || genericNames.has(artist))
+    && (!queryName || genericNames.has(queryName))
+    && !fingerprint.visibleYear
+    && !fingerprint.tagBrand
+    && !fingerprint.graphicFamilyGuess;
 }
 
 async function safeVisionExtract(visionService, input) {

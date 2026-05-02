@@ -23,6 +23,14 @@ export function buildResultMessage(result) {
     )
     .setTimestamp(new Date());
 
+  if (priceSnapshot.trustedCompCount === 0) {
+    embed.addFields({
+      name: 'Next try',
+      value: 'Run `/pricecheck` again with a note like artist/band, visible year, tag brand, tour/album, front text, or back text.',
+      inline: false
+    });
+  }
+
   const mainImage = result.submissionImages?.find((image) => image.role === 'front') ?? result.inputImages?.find((image) => image.role === 'front');
   if (mainImage?.url) embed.setImage(mainImage.url);
 
