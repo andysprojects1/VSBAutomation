@@ -18,6 +18,7 @@ export function buildResultMessage(result) {
       { name: 'Estimate', value: estimate, inline: false },
       { name: 'Confidence', value: priceSnapshot.confidence, inline: true },
       { name: 'Trusted comps', value: String(priceSnapshot.trustedCompCount), inline: true },
+      { name: 'Submitted input', value: summarizeSubmissionInput(submission), inline: false },
       { name: 'Likely details', value: summarizeFingerprint(fingerprint), inline: false },
       { name: 'Notes', value: priceSnapshot.notes.join('\n').slice(0, 1000) || 'No pricing notes.', inline: false }
     )
@@ -90,6 +91,14 @@ function summarizeFingerprint(fingerprint) {
     fingerprint.authenticityFlags?.length ? `Flags: ${fingerprint.authenticityFlags.join(', ')}` : null
   ].filter(Boolean);
   return parts.join('\n') || 'Not enough detail extracted.';
+}
+
+function summarizeSubmissionInput(submission) {
+  const parts = [
+    submission.itemNameGuess ? `Guess: ${submission.itemNameGuess}` : null,
+    submission.rawNote ? `Note: ${submission.rawNote}` : null
+  ].filter(Boolean);
+  return parts.join('\n').slice(0, 1000) || 'No note or guess received.';
 }
 
 function codeBlock(value) {
