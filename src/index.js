@@ -7,6 +7,7 @@ import { VisionService } from './integrations/vision.js';
 import { createBot } from './discord/bot.js';
 import { registerCommands } from './discord/registerCommands.js';
 import { createLogger } from './utils/log.js';
+import { describeError } from './utils/errors.js';
 
 const log = createLogger('app');
 const config = getConfig();
@@ -49,8 +50,8 @@ try {
     await store.migrate();
   }
 } catch (error) {
-  startup.errors.push(`Storage startup failed: ${error.message}`);
-  log.error('Storage startup failed. Falling back to local JSON storage for process stability.', { error: error.stack ?? error.message });
+  startup.errors.push(`Storage startup failed: ${describeError(error)}`);
+  log.error('Storage startup failed. Falling back to local JSON storage for process stability.', { error: describeError(error), stack: error.stack });
   store = new JsonStore(config.storage.jsonPath);
   startup.storage = 'json-fallback';
   await store.init();
@@ -69,8 +70,10 @@ if (config.discord.autoRegisterCommands && config.discord.token && config.discor
     });
   } catch (error) {
     startup.commandRegistration = 'failed';
-    startup.errors.push(`Command registration failed: ${error.message}`);
-    log.error('Discord slash command registration failed.', { error: error.stack ?? error.message });
+    const detail = describeError(error);
+    startup.errors.push(`Command registration failed: ${detail}`);
+    log.error('Discord slash command registration failed.', { error: detail, stack: error.stack });
+    console.error(`DISCORD_COMMAND_REGISTRATION_ERROR ${detail}`);
   }
 } else {
   startup.commandRegistration = 'skipped';
@@ -83,8 +86,10 @@ if (config.discord.token) {
     startup.ready = startup.errors.length === 0;
   } catch (error) {
     startup.botLoggedIn = false;
-    startup.errors.push(`Discord login failed: ${error.message}`);
-    log.error('Discord login failed. Check DISCORD_TOKEN in Railway.', { error: error.stack ?? error.message });
+    const detail = describeError(error);
+    startup.errors.push(`Discord login failed: ${detail}`);
+    log.error('Discord login failed. Check DISCORD_TOKEN in Railway.', { error: detail, stack: error.stack });
+    console.error(`DISCORD_LOGIN_ERROR ${detail}`);
   }
 } else {
   log.error('Discord token is missing. Set DISCORD_TOKEN in Railway variables.');
