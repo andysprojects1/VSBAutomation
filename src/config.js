@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 loadLocalEnv();
+loadRailwayInlineEnv();
 
 function loadLocalEnv() {
   const path = '.env';
@@ -17,6 +18,21 @@ function loadLocalEnv() {
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
+    process.env[key] = value;
+  }
+}
+
+function loadRailwayInlineEnv() {
+  const raw = process.env.APP_ENV || process.env.PRICE_BOT_ENV || '';
+  if (!raw.trim()) return;
+  for (const assignment of raw.split(/\r?\n|;/)) {
+    const trimmed = assignment.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const equals = trimmed.indexOf('=');
+    if (equals === -1) continue;
+    const key = trimmed.slice(0, equals).trim();
+    const value = trimmed.slice(equals + 1).trim();
+    if (!key || process.env[key]) continue;
     process.env[key] = value;
   }
 }
