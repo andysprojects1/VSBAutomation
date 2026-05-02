@@ -11,7 +11,9 @@ import { describeError } from './utils/errors.js';
 
 const log = createLogger('app');
 const config = getConfig();
-log.info('Startup environment diagnostics.', buildStartupDiagnostics(config));
+const diagnostics = buildStartupDiagnostics(config);
+log.info('Startup environment diagnostics.', diagnostics);
+console.log(`STARTUP_ENV_DIAGNOSTICS ${JSON.stringify(diagnostics)}`);
 const startup = {
   ready: false,
   botLoggedIn: false,
