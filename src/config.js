@@ -41,7 +41,11 @@ function listFromEnv(name) {
 }
 
 function stringFromEnv(name, fallback = '') {
-  return (process.env[name] ?? fallback).trim();
+  let value = (process.env[name] ?? fallback).trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1).trim();
+  }
+  return value;
 }
 
 function firstStringFromEnv(names, fallback = '') {
@@ -54,7 +58,8 @@ function firstStringFromEnv(names, fallback = '') {
 
 export function getConfig() {
   const useSandbox = boolFromEnv('EBAY_USE_SANDBOX');
-  const databaseUrl = firstStringFromEnv(['DATABASE_URL', 'POSTGRES_URL', 'DATABASE_PUBLIC_URL']);
+  const databaseUrl = firstStringFromEnv(['DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRIVATE_URL', 'DATABASE_PUBLIC_URL'])
+    || buildPostgresUrlFromParts();
   return {
     port: intFromEnv('PORT', 3000),
     discord: {
@@ -96,6 +101,50 @@ export function getConfig() {
       publicBaseUrl: stringFromEnv('PUBLIC_BASE_URL')
     }
   };
+}
+
+export function buildStartupDiagnostics(config) {
+  return {
+    discord: {
+      hasToken: Boolean(config.discord.token),
+      tokenLength: config.discord.token.length,
+      tokenDotCount: (config.discord.token.match(/\./g) ?? []).length,
+      tokenStartsWithBotPrefix: config.discord.token.startsWith('Bot '),
+      clientId: config.discord.clientId || null,
+      guildId: config.discord.guildId || null,
+      reviewChannelId: config.discord.reviewChannelId || null,
+      adminChannelId: config.discord.adminChannelId || null,
+      scraperLogChannelId: config.discord.scraperLogChannelId || null
+    },
+    storage: {
+      driver: config.storage.driver,
+      hasDatabaseUrl: Boolean(config.storage.databaseUrl),
+      databaseUrlLength: config.storage.databaseUrl.length,
+      databaseSsl: config.storage.ssl,
+      pgPartsPresent: {
+        PGHOST: Boolean(stringFromEnv('PGHOST')),
+        PGPORT: Boolean(stringFromEnv('PGPORT')),
+        PGDATABASE: Boolean(stringFromEnv('PGDATABASE')),
+        PGUSER: Boolean(stringFromEnv('PGUSER')),
+        PGPASSWORD: Boolean(stringFromEnv('PGPASSWORD'))
+      }
+    },
+    ebay: {
+      hasClientId: Boolean(config.ebay.clientId),
+      hasClientSecret: Boolean(config.ebay.clientSecret),
+      marketplaceId: config.ebay.marketplaceId
+    }
+  };
+}
+
+function buildPostgresUrlFromParts() {
+  const host = stringFromEnv('PGHOST');
+  const port = stringFromEnv('PGPORT', '5432');
+  const database = stringFromEnv('PGDATABASE');
+  const user = stringFromEnv('PGUSER');
+  const password = stringFromEnv('PGPASSWORD');
+  if (!host || !database || !user || !password) return '';
+  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
 }
 
 export function assertBotConfig(config) {

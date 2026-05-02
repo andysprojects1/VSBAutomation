@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { getConfig, validateBotConfig } from './config.js';
+import { buildStartupDiagnostics, getConfig, validateBotConfig } from './config.js';
 import { createStore } from './storage/store.js';
 import { JsonStore } from './storage/jsonStore.js';
 import { EbayClient } from './integrations/ebay.js';
@@ -11,6 +11,7 @@ import { describeError } from './utils/errors.js';
 
 const log = createLogger('app');
 const config = getConfig();
+log.info('Startup environment diagnostics.', buildStartupDiagnostics(config));
 const startup = {
   ready: false,
   botLoggedIn: false,
