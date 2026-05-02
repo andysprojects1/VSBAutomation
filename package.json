@@ -1,0 +1,22 @@
+{
+  "name": "vintage-tee-price-checker-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Discord vintage tee comp analyst with eBay sold comps, matching, pricing, and review feedback.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "register-commands": "node scripts/register-commands.js",
+    "migrate": "node scripts/migrate.js",
+    "smoke": "node scripts/smoke-test.js",
+    "test": "node test/pipeline.test.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {}
+}
