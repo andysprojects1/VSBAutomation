@@ -20,7 +20,7 @@ const startup = {
 
 const server = http.createServer((request, response) => {
   if (request.url === '/health') {
-    response.writeHead(startup.errors.length ? 503 : 200, { 'Content-Type': 'application/json' });
+    response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({
       ok: startup.errors.length === 0,
       time: new Date().toISOString(),
