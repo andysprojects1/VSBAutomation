@@ -50,7 +50,8 @@ export function getConfig() {
       guildId: process.env.DISCORD_GUILD_ID ?? '',
       reviewChannelId: process.env.REVIEW_CHANNEL_ID ?? '',
       adminChannelId: process.env.ADMIN_CHANNEL_ID ?? '',
-      scraperLogChannelId: process.env.SCRAPER_LOG_CHANNEL_ID ?? ''
+      scraperLogChannelId: process.env.SCRAPER_LOG_CHANNEL_ID ?? '',
+      autoRegisterCommands: boolFromEnv('AUTO_REGISTER_COMMANDS', true)
     },
     storage: {
       driver: process.env.STORE_DRIVER || (process.env.DATABASE_URL ? 'postgres' : 'json'),

@@ -4,6 +4,7 @@ import { createStore } from './storage/store.js';
 import { EbayClient } from './integrations/ebay.js';
 import { VisionService } from './integrations/vision.js';
 import { createBot } from './discord/bot.js';
+import { registerCommands } from './discord/registerCommands.js';
 import { createLogger } from './utils/log.js';
 
 const log = createLogger('app');
@@ -19,6 +20,13 @@ if (config.storage.driver === 'postgres') {
 const ebayClient = new EbayClient(config.ebay);
 const visionService = new VisionService(config.vision);
 const bot = createBot({ config, store, ebayClient, visionService });
+
+if (config.discord.autoRegisterCommands) {
+  await registerCommands(config);
+  log.info('Discord slash commands registered.', {
+    scope: config.discord.guildId ? 'guild' : 'global'
+  });
+}
 
 const server = http.createServer((request, response) => {
   if (request.url === '/health') {

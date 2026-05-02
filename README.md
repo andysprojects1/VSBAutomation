@@ -35,6 +35,8 @@ Discord bot for vintage tee price checks. It accepts shirt images and notes, bui
    npm run register-commands
    ```
 
+   By default, the Railway app also registers commands automatically at startup when `AUTO_REGISTER_COMMANDS=true`.
+
 5. Start the app:
 
    ```sh
@@ -46,6 +48,8 @@ Discord bot for vintage tee price checks. It accepts shirt images and notes, bui
 Create a Railway service from this repository, attach Railway Postgres, then add the environment variables from `.env.example`. Railway should provide `DATABASE_URL`; keep `STORE_DRIVER=postgres`.
 
 The deploy command runs migrations before starting the bot.
+
+If `DISCORD_GUILD_ID` is set, slash commands are registered to that Discord server on startup. Guild commands appear quickly and are best while testing.
 
 ## eBay notes
 
