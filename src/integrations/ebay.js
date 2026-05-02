@@ -73,6 +73,21 @@ export class EbayClient {
   }
 
   async searchSoldListings(query) {
+    const mode = this.config.soldSearchMode || 'web';
+    if (mode === 'web') {
+      return this.searchSoldWebListings(query);
+    }
+
+    if (mode === 'hybrid') {
+      const webListings = await this.searchSoldWebListings(query);
+      if (webListings.length) return webListings;
+      return this.searchSoldListingsViaApi(query);
+    }
+
+    return this.searchSoldListingsViaApi(query);
+  }
+
+  async searchSoldListingsViaApi(query) {
     const listings = [];
 
     if (this.isConfigured()) {
@@ -180,13 +195,17 @@ export class EbayClient {
     url.searchParams.set('_nkw', query.queryText);
     url.searchParams.set('LH_Sold', '1');
     url.searchParams.set('LH_Complete', '1');
-    url.searchParams.set('_sacat', this.config.categoryIds[0] ?? '0');
+    url.searchParams.set('_sacat', this.config.webSoldCategoryId ?? '0');
+    url.searchParams.set('_sop', '13');
 
     try {
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       });
       const html = await response.text();

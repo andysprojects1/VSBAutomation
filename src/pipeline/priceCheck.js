@@ -174,7 +174,8 @@ async function safeVisionCompare(visionService, input) {
 
 async function fetchLiveListings(ebayClient, queries) {
   const listings = [];
-  for (const query of queries.slice(0, 5)) {
+  const queryLimit = ebayClient.config?.maxSoldSearchQueries ?? 2;
+  for (const query of queries.slice(0, queryLimit)) {
     try {
       listings.push(...await ebayClient.searchSoldListings(query));
     } catch (error) {

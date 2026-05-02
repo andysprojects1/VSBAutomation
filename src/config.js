@@ -109,9 +109,12 @@ export function getConfig() {
       baseUrl: useSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com',
       oauthUrl: useSandbox ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token' : 'https://api.ebay.com/identity/v1/oauth2/token',
       findingUrl: useSandbox ? 'https://svcs.sandbox.ebay.com/services/search/FindingService/v1' : 'https://svcs.ebay.com/services/search/FindingService/v1',
+      soldSearchMode: stringFromEnv('EBAY_SOLD_SEARCH_MODE', 'web').toLowerCase(),
+      webSoldCategoryId: stringFromEnv('EBAY_WEB_SOLD_CATEGORY_ID', '0'),
       enableActiveFallback: boolFromEnv('EBAY_ENABLE_ACTIVE_FALLBACK'),
       enableWebSoldFallback: boolFromEnv('EBAY_ENABLE_WEB_SOLD_FALLBACK', true),
-      maxCompsPerQuery: intFromEnv('MAX_COMPS_PER_QUERY', 15)
+      maxCompsPerQuery: intFromEnv('MAX_COMPS_PER_QUERY', 15),
+      maxSoldSearchQueries: intFromEnv('MAX_SOLD_SEARCH_QUERIES', 2)
     },
     vision: {
       provider: stringFromEnv('VISION_PROVIDER', 'heuristic'),
@@ -157,7 +160,9 @@ export function buildStartupDiagnostics(config) {
     ebay: {
       hasClientId: Boolean(config.ebay.clientId),
       hasClientSecret: Boolean(config.ebay.clientSecret),
-      marketplaceId: config.ebay.marketplaceId
+      marketplaceId: config.ebay.marketplaceId,
+      soldSearchMode: config.ebay.soldSearchMode,
+      maxSoldSearchQueries: config.ebay.maxSoldSearchQueries
     }
   };
 }
