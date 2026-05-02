@@ -40,29 +40,42 @@ function listFromEnv(name) {
   return raw.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function stringFromEnv(name, fallback = '') {
+  return (process.env[name] ?? fallback).trim();
+}
+
+function firstStringFromEnv(names, fallback = '') {
+  for (const name of names) {
+    const value = stringFromEnv(name);
+    if (value) return value;
+  }
+  return fallback;
+}
+
 export function getConfig() {
   const useSandbox = boolFromEnv('EBAY_USE_SANDBOX');
+  const databaseUrl = firstStringFromEnv(['DATABASE_URL', 'POSTGRES_URL', 'DATABASE_PUBLIC_URL']);
   return {
     port: intFromEnv('PORT', 3000),
     discord: {
-      token: process.env.DISCORD_TOKEN ?? '',
-      clientId: process.env.DISCORD_CLIENT_ID ?? '',
-      guildId: process.env.DISCORD_GUILD_ID ?? '',
-      reviewChannelId: process.env.REVIEW_CHANNEL_ID ?? '',
-      adminChannelId: process.env.ADMIN_CHANNEL_ID ?? '',
-      scraperLogChannelId: process.env.SCRAPER_LOG_CHANNEL_ID ?? '',
+      token: stringFromEnv('DISCORD_TOKEN'),
+      clientId: stringFromEnv('DISCORD_CLIENT_ID'),
+      guildId: stringFromEnv('DISCORD_GUILD_ID'),
+      reviewChannelId: stringFromEnv('REVIEW_CHANNEL_ID'),
+      adminChannelId: stringFromEnv('ADMIN_CHANNEL_ID'),
+      scraperLogChannelId: stringFromEnv('SCRAPER_LOG_CHANNEL_ID'),
       autoRegisterCommands: boolFromEnv('AUTO_REGISTER_COMMANDS', true)
     },
     storage: {
-      driver: process.env.STORE_DRIVER || (process.env.DATABASE_URL ? 'postgres' : 'json'),
-      databaseUrl: process.env.DATABASE_URL ?? '',
+      driver: stringFromEnv('STORE_DRIVER') || (databaseUrl ? 'postgres' : 'json'),
+      databaseUrl,
       ssl: boolFromEnv('DATABASE_SSL', false),
-      jsonPath: process.env.JSON_STORE_PATH ?? 'data/local-store.json'
+      jsonPath: stringFromEnv('JSON_STORE_PATH', 'data/local-store.json')
     },
     ebay: {
-      clientId: process.env.EBAY_CLIENT_ID ?? '',
-      clientSecret: process.env.EBAY_CLIENT_SECRET ?? '',
-      marketplaceId: process.env.EBAY_MARKETPLACE_ID || 'EBAY_US',
+      clientId: stringFromEnv('EBAY_CLIENT_ID'),
+      clientSecret: stringFromEnv('EBAY_CLIENT_SECRET'),
+      marketplaceId: stringFromEnv('EBAY_MARKETPLACE_ID', 'EBAY_US'),
       categoryIds: listFromEnv('EBAY_CATEGORY_IDS'),
       useSandbox,
       baseUrl: useSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com',
@@ -71,16 +84,16 @@ export function getConfig() {
       maxCompsPerQuery: intFromEnv('MAX_COMPS_PER_QUERY', 15)
     },
     vision: {
-      provider: process.env.VISION_PROVIDER || 'heuristic',
-      openAiApiKey: process.env.OPENAI_API_KEY ?? '',
-      openAiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
-      webhookUrl: process.env.VISION_WEBHOOK_URL ?? '',
-      webhookToken: process.env.VISION_WEBHOOK_TOKEN ?? ''
+      provider: stringFromEnv('VISION_PROVIDER', 'heuristic'),
+      openAiApiKey: stringFromEnv('OPENAI_API_KEY'),
+      openAiModel: stringFromEnv('OPENAI_MODEL', 'gpt-4.1-mini'),
+      webhookUrl: stringFromEnv('VISION_WEBHOOK_URL'),
+      webhookToken: stringFromEnv('VISION_WEBHOOK_TOKEN')
     },
     pipeline: {
       maxVisionComparisons: intFromEnv('MAX_VISION_COMPARISONS', 5),
       pricingVersion: 'weighted-median-v1',
-      publicBaseUrl: process.env.PUBLIC_BASE_URL ?? ''
+      publicBaseUrl: stringFromEnv('PUBLIC_BASE_URL')
     }
   };
 }
@@ -97,5 +110,6 @@ export function validateBotConfig(config) {
   if (!config.discord.token) missing.push('DISCORD_TOKEN');
   if (!config.discord.clientId) missing.push('DISCORD_CLIENT_ID');
   if (config.storage.driver === 'postgres' && !config.storage.databaseUrl) missing.push('DATABASE_URL');
+  if (config.discord.token && config.discord.token.startsWith('Bot ')) missing.push('DISCORD_TOKEN must not include the "Bot " prefix');
   return missing;
 }
