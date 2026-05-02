@@ -1,7 +1,9 @@
-import { getConfig } from '../src/config.js';
+import { buildStartupDiagnostics, getConfig } from '../src/config.js';
 import { createStore } from '../src/storage/store.js';
 
 const config = getConfig();
+console.log(`MIGRATE_ENV_DIAGNOSTICS ${JSON.stringify(buildStartupDiagnostics(config))}`);
+
 if (config.storage.driver === 'postgres' && !config.storage.databaseUrl) {
   console.warn('DATABASE_URL is missing. Skipping Postgres migration so the app can still start.');
   process.exit(0);

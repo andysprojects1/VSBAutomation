@@ -68,7 +68,7 @@ export function getConfig() {
       guildId: stringFromEnv('DISCORD_GUILD_ID'),
       reviewChannelId: stringFromEnv('REVIEW_CHANNEL_ID'),
       adminChannelId: stringFromEnv('ADMIN_CHANNEL_ID'),
-      scraperLogChannelId: stringFromEnv('SCRAPER_LOG_CHANNEL_ID'),
+      scraperLogChannelId: firstStringFromEnv(['SCRAPER_LOG_CHANNEL_ID', 'SCRAPER_LOG_CHANNEL']),
       autoRegisterCommands: boolFromEnv('AUTO_REGISTER_COMMANDS', true)
     },
     storage: {
