@@ -85,11 +85,16 @@ export function getConfig() {
 }
 
 export function assertBotConfig(config) {
+  const missing = validateBotConfig(config);
+  if (missing.length) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+
+export function validateBotConfig(config) {
   const missing = [];
   if (!config.discord.token) missing.push('DISCORD_TOKEN');
   if (!config.discord.clientId) missing.push('DISCORD_CLIENT_ID');
   if (config.storage.driver === 'postgres' && !config.storage.databaseUrl) missing.push('DATABASE_URL');
-  if (missing.length) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
+  return missing;
 }

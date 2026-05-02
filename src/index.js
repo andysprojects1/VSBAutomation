@@ -1,6 +1,7 @@
 import http from 'node:http';
-import { getConfig, assertBotConfig } from './config.js';
+import { getConfig, validateBotConfig } from './config.js';
 import { createStore } from './storage/store.js';
+import { JsonStore } from './storage/jsonStore.js';
 import { EbayClient } from './integrations/ebay.js';
 import { VisionService } from './integrations/vision.js';
 import { createBot } from './discord/bot.js';
@@ -9,29 +10,22 @@ import { createLogger } from './utils/log.js';
 
 const log = createLogger('app');
 const config = getConfig();
-assertBotConfig(config);
-
-const store = createStore(config.storage);
-await store.init();
-if (config.storage.driver === 'postgres') {
-  await store.migrate();
-}
-
-const ebayClient = new EbayClient(config.ebay);
-const visionService = new VisionService(config.vision);
-const bot = createBot({ config, store, ebayClient, visionService });
-
-if (config.discord.autoRegisterCommands) {
-  await registerCommands(config);
-  log.info('Discord slash commands registered.', {
-    scope: config.discord.guildId ? 'guild' : 'global'
-  });
-}
+const startup = {
+  ready: false,
+  botLoggedIn: false,
+  commandRegistration: 'pending',
+  storage: config.storage.driver,
+  errors: []
+};
 
 const server = http.createServer((request, response) => {
   if (request.url === '/health') {
-    response.writeHead(200, { 'Content-Type': 'application/json' });
-    response.end(JSON.stringify({ ok: true, time: new Date().toISOString() }));
+    response.writeHead(startup.errors.length ? 503 : 200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({
+      ok: startup.errors.length === 0,
+      time: new Date().toISOString(),
+      ...startup
+    }));
     return;
   }
   response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -42,7 +36,59 @@ server.listen(config.port, () => {
   log.info('Health server listening.', { port: config.port });
 });
 
-await bot.login(config.discord.token);
+const validationErrors = validateBotConfig(config);
+for (const error of validationErrors) {
+  startup.errors.push(error);
+  log.error('Configuration error.', { error });
+}
+
+let store = createStore(config.storage);
+try {
+  await store.init();
+  if (config.storage.driver === 'postgres') {
+    await store.migrate();
+  }
+} catch (error) {
+  startup.errors.push(`Storage startup failed: ${error.message}`);
+  log.error('Storage startup failed. Falling back to local JSON storage for process stability.', { error: error.stack ?? error.message });
+  store = new JsonStore(config.storage.jsonPath);
+  startup.storage = 'json-fallback';
+  await store.init();
+}
+
+const ebayClient = new EbayClient(config.ebay);
+const visionService = new VisionService(config.vision);
+const bot = createBot({ config, store, ebayClient, visionService });
+
+if (config.discord.autoRegisterCommands && config.discord.token && config.discord.clientId) {
+  try {
+    await registerCommands(config);
+    startup.commandRegistration = 'registered';
+    log.info('Discord slash commands registered.', {
+      scope: config.discord.guildId ? 'guild' : 'global'
+    });
+  } catch (error) {
+    startup.commandRegistration = 'failed';
+    startup.errors.push(`Command registration failed: ${error.message}`);
+    log.error('Discord slash command registration failed.', { error: error.stack ?? error.message });
+  }
+} else {
+  startup.commandRegistration = 'skipped';
+}
+
+if (config.discord.token) {
+  try {
+    await bot.login(config.discord.token);
+    startup.botLoggedIn = true;
+    startup.ready = startup.errors.length === 0;
+  } catch (error) {
+    startup.botLoggedIn = false;
+    startup.errors.push(`Discord login failed: ${error.message}`);
+    log.error('Discord login failed. Check DISCORD_TOKEN in Railway.', { error: error.stack ?? error.message });
+  }
+} else {
+  log.error('Discord token is missing. Set DISCORD_TOKEN in Railway variables.');
+}
 
 process.on('SIGTERM', () => {
   log.info('SIGTERM received, shutting down.');
