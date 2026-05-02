@@ -124,6 +124,23 @@ async function sendAdminNotice(client, config, content) {
   log.warn('Could not send startup notice to any configured channel.', { errors });
 }
 
+async function sendScraperDiagnostics(client, config, result) {
+  if (!config.discord.scraperLogChannelId || !result.soldSearchDiagnostics?.length) return;
+  try {
+    const channel = await client.channels.fetch(config.discord.scraperLogChannelId);
+    const lines = result.soldSearchDiagnostics.slice(0, 8).map((item) => {
+      const status = item.ok ? `ok count=${item.count ?? 0}` : `failed ${item.error}`;
+      return `- ${item.provider}: ${status}\n  Query: ${item.query}${item.soldSearchUrl ? `\n  URL: ${item.soldSearchUrl}` : ''}`;
+    });
+    await channel.send([
+      `Sold-search diagnostics for \`${result.submission.id}\`:`,
+      ...lines
+    ].join('\n').slice(0, 1900));
+  } catch (error) {
+    log.warn('Could not send scraper diagnostics.', { error: error.message });
+  }
+}
+
 async function handlePriceCheck(interaction, { config, store, ebayClient, visionService, client }) {
   await interaction.deferReply({ ephemeral: true });
   const images = collectImages(interaction);
@@ -143,6 +160,7 @@ async function handlePriceCheck(interaction, { config, store, ebayClient, vision
 
   const result = await runPriceCheck({ store, ebayClient, visionService, config, input });
   result.inputImages = images;
+  await sendScraperDiagnostics(client, config, result);
   const messagePayload = buildResultMessage(result);
   const targetChannelId = config.discord.reviewChannelId || interaction.channelId;
   const targetChannel = await client.channels.fetch(targetChannelId);

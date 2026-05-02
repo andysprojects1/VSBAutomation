@@ -48,6 +48,17 @@ export function buildResultMessage(result) {
     });
   }
 
+  if (!topMatches.length && result.soldSearchDiagnostics?.length) {
+    const manualUrl = result.soldSearchDiagnostics.find((item) => item.soldSearchUrl)?.soldSearchUrl;
+    if (manualUrl) {
+      embed.addFields({
+        name: 'Manual sold search',
+        value: `[Open the eBay sold search the bot tried](${manualUrl})`,
+        inline: false
+      });
+    }
+  }
+
   const buttons = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`review:yes:${submission.id}`).setLabel('Yes').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`review:no:${submission.id}`).setLabel('No').setStyle(ButtonStyle.Danger),

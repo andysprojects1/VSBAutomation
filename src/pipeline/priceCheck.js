@@ -57,7 +57,8 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
   await store.saveQueries(submission.id, queries);
 
   const storedListings = await store.findListingsForQueries(queries);
-  const liveListings = await fetchLiveListings(ebayClient, queries);
+  const liveResult = await fetchLiveListings(ebayClient, queries);
+  const liveListings = liveResult.listings;
   const deduped = dedupeListings([...storedListings, ...liveListings])
     .map((listing) => ({ ...listing, features: listing.features?.titleTokens ? listing.features : extractListingFeatures(listing) }));
 
@@ -116,6 +117,7 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
   if (!deduped.length) {
     snapshot.notes = [
       'No sold listings came back from eBay Marketplace Insights, Finding completed-items, or the web sold-search fallback.',
+      ...formatSoldSearchDiagnostics(liveResult.diagnostics),
       'If Marketplace Insights/Finding are unavailable for your eBay app, use `/addcomp` to seed known sold comps or connect a dedicated scraper provider.',
       ...snapshot.notes
     ];
@@ -134,7 +136,8 @@ export async function runPriceCheck({ store, ebayClient, visionService, config, 
     queries,
     listings: deduped,
     matches,
-    priceSnapshot
+    priceSnapshot,
+    soldSearchDiagnostics: liveResult.diagnostics
   };
 }
 
@@ -187,7 +190,21 @@ async function fetchLiveListings(ebayClient, queries) {
       }
     }
   }
-  return listings;
+  return {
+    listings,
+    diagnostics: ebayClient.getAndClearDiagnostics?.() ?? []
+  };
+}
+
+function formatSoldSearchDiagnostics(diagnostics = []) {
+  if (!diagnostics.length) return ['No sold-search diagnostics were recorded.'];
+  return diagnostics.slice(0, 4).map((item) => {
+    if (item.ok) {
+      return `${item.provider}: "${item.query}" returned ${item.count ?? 0} listing${item.count === 1 ? '' : 's'}.`;
+    }
+    const manual = item.soldSearchUrl ? ` Manual URL: ${item.soldSearchUrl}` : '';
+    return `${item.provider}: "${item.query}" failed: ${item.error}.${manual}`;
+  });
 }
 
 function dedupeListings(listings) {

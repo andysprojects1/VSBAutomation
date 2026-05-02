@@ -8,6 +8,7 @@ export class EbayClient {
     this.config = config;
     this.token = null;
     this.tokenExpiresAt = 0;
+    this.diagnostics = [];
   }
 
   isConfigured() {
@@ -87,6 +88,19 @@ export class EbayClient {
     return this.searchSoldListingsViaApi(query);
   }
 
+  getAndClearDiagnostics() {
+    const diagnostics = this.diagnostics;
+    this.diagnostics = [];
+    return diagnostics;
+  }
+
+  recordDiagnostic(diagnostic) {
+    this.diagnostics.push({
+      time: new Date().toISOString(),
+      ...diagnostic
+    });
+  }
+
   async searchSoldListingsViaApi(query) {
     const listings = [];
 
@@ -106,8 +120,21 @@ export class EbayClient {
           params,
           'https://api.ebay.com/oauth/api_scope/buy.marketplace.insights'
         );
-        listings.push(...(data.itemSales ?? []).map((item) => mapSaleItem(item, query.queryText)));
+        const mapped = (data.itemSales ?? []).map((item) => mapSaleItem(item, query.queryText));
+        listings.push(...mapped);
+        this.recordDiagnostic({
+          provider: 'marketplace_insights',
+          query: query.queryText,
+          ok: true,
+          count: mapped.length
+        });
       } catch (error) {
+        this.recordDiagnostic({
+          provider: 'marketplace_insights',
+          query: query.queryText,
+          ok: false,
+          error: error.message
+        });
         log.warn('eBay Marketplace Insights sold search failed. Trying completed-items fallback.', {
           query: query.queryText,
           error: error.message
@@ -115,6 +142,12 @@ export class EbayClient {
       }
     } else {
       log.warn('eBay OAuth credentials missing, skipping Marketplace Insights sold search.');
+      this.recordDiagnostic({
+        provider: 'marketplace_insights',
+        query: query.queryText,
+        ok: false,
+        error: 'eBay OAuth credentials missing'
+      });
     }
 
     if (!listings.length) {
@@ -180,8 +213,21 @@ export class EbayClient {
         throw new Error(`Finding API ${ack}: ${JSON.stringify(apiResponse?.errorMessage ?? {}).slice(0, 300)}`);
       }
       const items = apiResponse?.searchResult?.[0]?.item ?? [];
-      return items.map((item) => mapFindingItem(item, query.queryText)).filter((listing) => listing.price != null);
+      const mapped = items.map((item) => mapFindingItem(item, query.queryText)).filter((listing) => listing.price != null);
+      this.recordDiagnostic({
+        provider: 'finding_completed',
+        query: query.queryText,
+        ok: true,
+        count: mapped.length
+      });
+      return mapped;
     } catch (error) {
+      this.recordDiagnostic({
+        provider: 'finding_completed',
+        query: query.queryText,
+        ok: false,
+        error: error.message
+      });
       log.warn('eBay Finding completed-items fallback failed.', {
         query: query.queryText,
         error: error.message
@@ -212,8 +258,24 @@ export class EbayClient {
       if (!response.ok) {
         throw new Error(`eBay sold web search failed (${response.status}). Search manually: ${url.toString()}`);
       }
-      return parseSoldSearchHtml(html, query.queryText, url.toString()).slice(0, this.config.maxCompsPerQuery);
+      const mapped = parseSoldSearchHtml(html, query.queryText, url.toString()).slice(0, this.config.maxCompsPerQuery);
+      this.recordDiagnostic({
+        provider: 'web_sold_search',
+        query: query.queryText,
+        ok: true,
+        status: response.status,
+        count: mapped.length,
+        soldSearchUrl: url.toString()
+      });
+      return mapped;
     } catch (error) {
+      this.recordDiagnostic({
+        provider: 'web_sold_search',
+        query: query.queryText,
+        ok: false,
+        error: error.message,
+        soldSearchUrl: url.toString()
+      });
       log.warn('eBay sold web fallback failed.', {
         query: query.queryText,
         error: error.message,
