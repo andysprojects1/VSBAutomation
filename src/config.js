@@ -72,6 +72,12 @@ function firstStringFromEnv(names, fallback = '') {
   return fallback;
 }
 
+function optionalIdFromEnv(names) {
+  const value = Array.isArray(names) ? firstStringFromEnv(names) : stringFromEnv(names);
+  if (!value || value.startsWith('PASTE_') || value.includes('_HERE')) return '';
+  return value;
+}
+
 export function getConfig() {
   const useSandbox = boolFromEnv('EBAY_USE_SANDBOX');
   const databaseUrl = firstStringFromEnv(['DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRIVATE_URL', 'DATABASE_PUBLIC_URL'])
@@ -82,9 +88,9 @@ export function getConfig() {
       token: stringFromEnv('DISCORD_TOKEN'),
       clientId: stringFromEnv('DISCORD_CLIENT_ID'),
       guildId: stringFromEnv('DISCORD_GUILD_ID'),
-      reviewChannelId: stringFromEnv('REVIEW_CHANNEL_ID'),
-      adminChannelId: stringFromEnv('ADMIN_CHANNEL_ID'),
-      scraperLogChannelId: firstStringFromEnv(['SCRAPER_LOG_CHANNEL_ID', 'SCRAPER_LOG_CHANNEL']),
+      reviewChannelId: optionalIdFromEnv('REVIEW_CHANNEL_ID'),
+      adminChannelId: optionalIdFromEnv('ADMIN_CHANNEL_ID'),
+      scraperLogChannelId: optionalIdFromEnv(['SCRAPER_LOG_CHANNEL_ID', 'SCRAPER_LOG_CHANNEL']),
       autoRegisterCommands: boolFromEnv('AUTO_REGISTER_COMMANDS', true)
     },
     storage: {
