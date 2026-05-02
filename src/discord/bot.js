@@ -16,6 +16,12 @@ export function createBot({ config, store, ebayClient, visionService }) {
 
   client.once('ready', () => {
     log.info('Discord bot ready.', { user: client.user?.tag });
+    sendAdminNotice(client, config, [
+      `Bot online as ${client.user?.tag ?? 'unknown bot'}.`,
+      config.discord.reviewChannelId ? `Review cards: <#${config.discord.reviewChannelId}>` : 'Review channel is not configured.',
+      config.discord.adminChannelId ? `Admin channel: <#${config.discord.adminChannelId}>` : 'Admin channel is not configured.',
+      config.discord.scraperLogChannelId ? `Log channel: <#${config.discord.scraperLogChannelId}>` : 'Scraper log channel is not configured.'
+    ].join('\n'));
   });
 
   client.on('interactionCreate', async (interaction) => {
@@ -40,6 +46,14 @@ export function createBot({ config, store, ebayClient, visionService }) {
 }
 
 async function handleCommand(interaction, deps) {
+  if (!isCommandAllowedInChannel(interaction, deps.config)) {
+    await interaction.reply({
+      content: buildWrongChannelMessage(interaction.commandName, deps.config),
+      ephemeral: true
+    });
+    return;
+  }
+
   switch (interaction.commandName) {
     case 'pricecheck':
       return handlePriceCheck(interaction, deps);
@@ -55,6 +69,43 @@ async function handleCommand(interaction, deps) {
       return handleRefreshComps(interaction, deps);
     default:
       return interaction.reply({ content: 'Unknown command.', ephemeral: true });
+  }
+}
+
+function isCommandAllowedInChannel(interaction, config) {
+  const adminCommands = new Set(['addcomp', 'refreshcomps']);
+  const userCommands = new Set(['pricecheck', 'identify', 'explain', 'review']);
+  const adminChannelId = config.discord.adminChannelId;
+
+  if (adminCommands.has(interaction.commandName)) {
+    return !adminChannelId || interaction.channelId === adminChannelId;
+  }
+
+  if (userCommands.has(interaction.commandName)) {
+    return interaction.channelId !== config.discord.reviewChannelId
+      && interaction.channelId !== config.discord.scraperLogChannelId;
+  }
+
+  return true;
+}
+
+function buildWrongChannelMessage(commandName, config) {
+  if (['addcomp', 'refreshcomps'].includes(commandName) && config.discord.adminChannelId) {
+    return `Use \`/${commandName}\` in <#${config.discord.adminChannelId}>.`;
+  }
+  if (config.discord.adminChannelId) {
+    return `Use that command in the intake channel or <#${config.discord.adminChannelId}>. This channel is reserved for bot output.`;
+  }
+  return 'Use that command in the intake channel. This channel is reserved for bot output.';
+}
+
+async function sendAdminNotice(client, config, content) {
+  if (!config.discord.adminChannelId) return;
+  try {
+    const channel = await client.channels.fetch(config.discord.adminChannelId);
+    await channel.send(content);
+  } catch (error) {
+    log.warn('Could not send admin startup notice.', { error: error.message });
   }
 }
 
