@@ -100,13 +100,28 @@ function buildWrongChannelMessage(commandName, config) {
 }
 
 async function sendAdminNotice(client, config, content) {
-  if (!config.discord.adminChannelId) return;
-  try {
-    const channel = await client.channels.fetch(config.discord.adminChannelId);
-    await channel.send(content);
-  } catch (error) {
-    log.warn('Could not send admin startup notice.', { error: error.message });
+  const channelIds = [
+    config.discord.adminChannelId,
+    config.discord.reviewChannelId
+  ].filter(Boolean);
+  if (!channelIds.length) {
+    log.warn('No admin or review channel configured for startup notice.');
+    return;
   }
+
+  const errors = [];
+  for (const channelId of channelIds) {
+    try {
+      const channel = await client.channels.fetch(channelId);
+      await channel.send(content);
+      log.info('Sent startup notice.', { channelId });
+      return;
+    } catch (error) {
+      errors.push({ channelId, error: error.message });
+    }
+  }
+
+  log.warn('Could not send startup notice to any configured channel.', { errors });
 }
 
 async function handlePriceCheck(interaction, { config, store, ebayClient, visionService, client }) {
